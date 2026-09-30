@@ -37,6 +37,10 @@ node_modules
 dist-ssr
 coverage
 *.local
+.env
+.env.*
+.eh-test-deps/
+.venv-eh/
 
 /cypress/videos/
 /cypress/screenshots/

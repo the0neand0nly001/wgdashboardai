@@ -56,20 +56,25 @@ export default {
 
 <template>
 	<div class="col-md-3 col-lg-2 d-md-block p-2 navbar-container bg-transparent"
-	     :class="{active: this.dashboardConfigurationStore.ShowNavBar}"
+	     :class="{active: this.dashboardConfigurationStore.ShowNavBar, 'eh-nav': dashboardConfigurationStore.EHGateway}"
+	     @click="($event.target.closest('a') && dashboardConfigurationStore.EHGateway) && (dashboardConfigurationStore.ShowNavBar = false)"
 	     :data-bs-theme="dashboardConfigurationStore.Configuration.Server.dashboard_theme"
 	>
 		<nav id="sidebarMenu" class=" bg-body-tertiary sidebar border h-100 rounded-3 shadow overflow-y-scroll" >
 			<div class="sidebar-sticky ">
 				<div class="text-white text-center m-0 py-3 mb-2 btn-brand">
 					<h5 class="mb-0">
-						WGDashboard
+						{{ dashboardConfigurationStore.EHGateway ? 'Endless Horizons VPN' : 'WGDashboard' }}
 					</h5>
 					<small class="ms-auto" v-if="getActiveCrossServer !== undefined">
 						<i class="bi bi-hdd-rack-fill me-2"></i>{{getActiveCrossServer.host}}
 					</small>
 				</div>
 				<ul class="nav flex-column px-2 gap-1">
+					<li v-if="dashboardConfigurationStore.EHGateway" class="nav-item">
+						<RouterLink to="/forwarding" class="nav-link rounded-3" active-class="active"><i class="bi bi-arrow-left-right me-2"></i>Temporary forwarding</RouterLink>
+						<RouterLink to="/configurations" class="nav-link rounded-3" active-class="active"><i class="bi bi-qr-code me-2"></i>Devices &amp; QR codes</RouterLink>
+					</li>
 					<li class="nav-item">
 						<RouterLink class="nav-link rounded-3"
 						            to="/" exact-active-class="active">
@@ -173,6 +178,8 @@ export default {
 </template>
 
 <style scoped>
+.navbar-container.eh-nav { display: none !important; position: absolute; z-index: 1050; width: min(340px, 92vw); height: calc(100dvh - 64px); }
+.navbar-container.eh-nav.active { display: block !important; }
 @media screen and (max-width: 768px) {
 	.navbar-container{
 		position: absolute !important;

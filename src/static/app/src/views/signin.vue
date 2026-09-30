@@ -109,7 +109,7 @@ export default {
 					<LocaleText t="Welcome to"></LocaleText>
 				</h4>
 				<span class="dashboardLogo display-3">
-					<strong>WGDashboard</strong>
+					<strong>{{ store.EHGateway ? 'Endless Horizons VPN' : 'WGDashboard' }}</strong>
 				</span>
 				<form @submit="(e) => {e.preventDefault(); this.auth();}"
 				      class="mt-3"
@@ -171,7 +171,7 @@ export default {
 				</form>
 				<RemoteServerList v-else></RemoteServerList>
 
-				<div class="d-flex mt-3" v-if="!this.store.IsElectronApp">
+				<div class="d-flex mt-3" v-if="!this.store.IsElectronApp && !store.EHGateway">
 					<div class="form-check form-switch ms-auto">
 						<input
 							v-model="this.store.CrossServerConfiguration.Enable"
@@ -194,7 +194,7 @@ export default {
 				   class="text-decoration-none text-body"
 				   target="_blank"><strong>WGDashboard</strong></a>
 			</small>
-			<a href="./client" target="_blank"
+			<a v-if="!store.EHGateway" href="./client" target="_blank"
 			   class="text-decoration-none ms-auto text-body"
 			   style="white-space: nowrap">
 				<small><i class="bi bi-box-arrow-up-right me-1"></i>

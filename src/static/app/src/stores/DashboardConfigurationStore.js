@@ -5,6 +5,8 @@ import {GetLocale} from "@/utilities/locale.js";
 
 export const DashboardConfigurationStore = defineStore('DashboardConfigurationStore', {
 	state: () => ({
+		EHGateway: Boolean(window.EH_GATEWAY),
+		EHNode: sessionStorage.getItem('EHSelectedNode') || 'vpn2',
 		Redirect: undefined,
 		Configuration: undefined,
 		Messages: [],
@@ -26,7 +28,14 @@ export const DashboardConfigurationStore = defineStore('DashboardConfigurationSt
 		}
 	}),
 	actions: {
+		selectEHNode(value){
+			if (!['vpn1', 'vpn2'].includes(value)) return;
+			sessionStorage.setItem('EHSelectedNode', value);
+			window.location.hash = '#/overview';
+			window.location.reload();
+		},
 		initCrossServerConfiguration(){
+			if (window.EH_GATEWAY) return;
 			const currentConfiguration = localStorage.getItem('CrossServerConfiguration');
 			if (localStorage.getItem("ActiveCrossServerConfiguration") !== null){
 				this.ActiveServerConfiguration = localStorage.getItem("ActiveCrossServerConfiguration");

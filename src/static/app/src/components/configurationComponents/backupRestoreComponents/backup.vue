@@ -46,7 +46,8 @@ const restoreBackup = () => {
 }
 
 const downloadBackup = () => {
-	window.location.href = getUrl(`/api/downloadWireguardConfigurationBackup?configurationName=${route.params.id}&backupFileName=${props.b.filename}`);
+	const node = window.EH_GATEWAY ? `&_eh_node=${sessionStorage.getItem('EHSelectedNode') || 'vpn2'}` : '';
+	window.location.href = getUrl(`/api/downloadWireguardConfigurationBackup?configurationName=${route.params.id}&backupFileName=${props.b.filename}${node}`);
 }
 
 const delaySeconds = computed(() => {

@@ -226,6 +226,16 @@ API Routes
 
 @app.before_request
 def auth_req():
+    # In the EH deployment this backend has no public listener. Only the
+    # authenticated gateway's node bridge can reach it, using a server-side key.
+    node_token = os.environ.get('EH_NODE_TOKEN')
+    if node_token:
+        if not secrets.compare_digest(request.headers.get('X-EH-Node-Token', ''), node_token):
+            return ResponseObject(False, 'Private backend', status_code=401)
+        session['role'] = 'admin'
+        session['username'] = 'eh-private-transport'
+        DashboardConfig.APIAccessed = False
+        return None
     if request.method.lower() == 'options':
         return ResponseObject(True)        
 

@@ -1,0 +1,12 @@
+.git
+.secrets
+**/node_modules
+**/__pycache__
+**/*.env
+.env*
+.eh-test-deps
+.venv-eh
+**/*.key
+**/*.db
+**/wg-dashboard.ini
+src/static/dist

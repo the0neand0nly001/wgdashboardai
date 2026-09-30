@@ -22,7 +22,7 @@ export default {
 	<div class="container-fluid flex-grow-1 main" :data-bs-theme="this.dashboardConfigurationStore.Configuration.Server.dashboard_theme">
 		<div class="row h-100">
 			<Navbar></Navbar>
-			<main class="col-md-9 col-lg-10 overflow-y-scroll mb-0 pt-2">
+				<main class="col-md-9 col-lg-10 overflow-y-scroll mb-0 pt-2" :class="{'eh-main': dashboardConfigurationStore.EHGateway}">
 				<Suspense>
 					<RouterView v-slot="{Component}">
 						<Transition name="fade2" mode="out-in" appear>
@@ -43,6 +43,7 @@ export default {
 </template>
 
 <style scoped>
+.eh-main { width: 100%; height: calc(100dvh - 64px); }
 	main{
 		height: 100vh;
 	}

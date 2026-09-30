@@ -1,6 +1,10 @@
 import {DashboardConfigurationStore} from "@/stores/DashboardConfigurationStore.js";
 import router from "@/router/router.js";
 const getHeaders = () => {
+	if (window.EH_GATEWAY) return {
+		'Content-Type': 'application/json', 'X-EH-Request': '1',
+		'X-EH-Node': sessionStorage.getItem('EHSelectedNode') || 'vpn2'
+	};
 	let headers = {
 		"Content-Type": "application/json"
 	}
@@ -22,6 +26,7 @@ const getHeaders = () => {
 }
 
 export const getUrl = (url) => {
+	if (window.EH_GATEWAY) return url;
 	const store = DashboardConfigurationStore();
 	const apiKey = store.getActiveCrossServer();
 	if (apiKey){
@@ -35,6 +40,17 @@ export const getUrl = (url) => {
 }
 
 export const fetchGet = async (url, params=undefined, callback=undefined) => {
+	if (window.EH_GATEWAY) {
+		try {
+			const response = await fetch(`${getUrl(url)}?${new URLSearchParams(params).toString()}`, {headers: getHeaders()});
+			const value = await response.json();
+			if (response.status === 401) router.push('/signin');
+			return callback ? callback(value) : value;
+		} catch {
+			const value = {status:false, message:'Dashboard request failed. Check the private connection.'};
+			return callback ? callback(value) : value;
+		}
+	}
 	const urlSearchParams = new URLSearchParams(params);
 	await fetch(`${getUrl(url)}?${urlSearchParams.toString()}`, {
 		headers: getHeaders()
@@ -59,6 +75,17 @@ export const fetchGet = async (url, params=undefined, callback=undefined) => {
 }
 
 export const fetchPost = async (url, body, callback) => {
+	if (window.EH_GATEWAY) {
+		try {
+			const response = await fetch(getUrl(url), {headers:getHeaders(), method:'POST', body:JSON.stringify(body)});
+			const value = await response.json();
+			if (response.status === 401) router.push('/signin');
+			return callback ? callback(value) : value;
+		} catch {
+			const value = {status:false, message:'Dashboard request failed. Check the private connection.'};
+			return callback ? callback(value) : value;
+		}
+	}
 	await fetch(`${getUrl(url)}`, {
 		headers: getHeaders(),
 		method: "POST",

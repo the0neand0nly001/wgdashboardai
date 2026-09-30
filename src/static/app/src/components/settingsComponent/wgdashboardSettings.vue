@@ -71,7 +71,8 @@ const dashboardConfigurationStore = DashboardConfigurationStore()
 					<h6 >
 						<LocaleText t="Multi-Factor Authentication (MFA)"></LocaleText>
 					</h6>
-					<AccountSettingsMFA v-if="!dashboardConfigurationStore.getActiveCrossServer()"></AccountSettingsMFA>
+					<AccountSettingsMFA v-if="!dashboardConfigurationStore.getActiveCrossServer() && !dashboardConfigurationStore.EHGateway"></AccountSettingsMFA>
+					<p v-if="dashboardConfigurationStore.EHGateway" class="text-secondary small">This shared gateway uses one admin password for both servers. Native backend MFA is not used by the central login.</p>
 				</div>
 			</div>
 		</div>

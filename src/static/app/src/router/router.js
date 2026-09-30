@@ -29,9 +29,13 @@ const router = createRouter({
 				requiresAuth: true,
 			},
 			children: [
+				{ name: 'EH Overview', path: 'overview', component: () => import('@/views/ehOverview.vue'), meta: { title: 'VPN overview' } },
+				{ name: 'EH Forwarding', path: 'forwarding', component: () => import('@/views/ehForwarding.vue'), meta: { title: 'Temporary forwarding' } },
+				{ name: 'EH Configurations', path: 'configurations', component: () => import('@/components/configurationList.vue'), meta: { title: 'VPN configurations' } },
 				{
 					name: "Configuration List",
 					path: '',
+					redirect: window.EH_GATEWAY ? '/overview' : undefined,
 					component: () => import('@/components/configurationList.vue'),
 					meta: {
 						title: "WireGuard Configurations"

@@ -1,4 +1,7 @@
 .git
+.secrets
+.env*
+**/*.env
 .github
 *.md
 tests/
