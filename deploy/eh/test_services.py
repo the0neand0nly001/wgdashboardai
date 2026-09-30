@@ -95,7 +95,8 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(payload['Cmd'],original['Config']['Cmd'])
         self.assertEqual(payload['HostConfig']['PortBindings'],original['HostConfig']['PortBindings'])
         self.assertEqual(payload['HostConfig']['CapAdd'],['NET_ADMIN'])
-        self.assertIn('/safe/amnezia-start.sh:/opt/amnezia/start.sh:ro',payload['HostConfig']['Binds'])
+        self.assertIn('/safe/vpnconfig:/opt/amnezia/wireguard',payload['HostConfig']['Binds'])
+        self.assertFalse(any('/opt/amnezia/start.sh' in bind for bind in payload['HostConfig']['Binds']))
         self.assertEqual(original['HostConfig']['Binds'],['/lib/modules:/lib/modules'])
     def test_refuses_unverified_network_before_migration(self):
         with self.assertRaises(ValueError):

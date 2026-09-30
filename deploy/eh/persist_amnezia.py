@@ -44,8 +44,7 @@ def create_payload(metadata, source):
     payload = dict(metadata['Config'])
     payload['Image'] = metadata['Image']  # Pin the already-running local image ID.
     host = dict(metadata['HostConfig'])
-    host['Binds'] = list(host.get('Binds') or []) + [str(source) + ':' + DESTINATION,
-                      str(Path(source).parent / 'amnezia-start.sh') + ':/opt/amnezia/start.sh:ro']
+    host['Binds'] = list(host.get('Binds') or []) + [str(source) + ':' + DESTINATION]
     payload['HostConfig'] = host
     return payload
 
@@ -91,6 +90,9 @@ def main():
         renamed = True
         api('POST', '/containers/create?name=' + NAME, create_payload(metadata, config_dir))
         created = True
+        # Keep the generated startup file writable for future Amnezia edits.
+        # A file bind would prevent Amnezia from replacing it atomically.
+        subprocess.run(['docker','cp',str(startup),NAME + ':/opt/amnezia/start.sh'],check=True)
         api('POST', '/containers/' + NAME + '/start')
         time.sleep(3)
         current = api('GET', '/containers/' + NAME + '/json')
