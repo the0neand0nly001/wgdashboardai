@@ -51,10 +51,10 @@ const emit = defineEmits(['qrcode', 'configurationFile', 'setting', 'jobs', 'ref
 		<small v-else>N/A</small>
 	</td>
 	<td>
-		<a role="button" class="text-body"
+		<button type="button" class="text-body border-0 bg-transparent p-0" :aria-label="'Device actions for ' + (Peer.name || Peer.allowed_ip)" :aria-expanded="subMenuOpened"
 		   @click="subMenuOpened = true">
 			<h5 class="mb-0"><i class="bi bi-three-dots"></i></h5>
-		</a>
+		</button>
 		<Transition name="slide-fade">
 			<PeerSettingsDropdown
 				@qrcode="(file) => emit('qrcode', file)"

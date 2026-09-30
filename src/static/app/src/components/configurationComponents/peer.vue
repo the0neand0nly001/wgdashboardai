@@ -110,10 +110,10 @@ export default {
 					<div class="ms-auto px-2 rounded-3 subMenuBtn position-relative"
 					     :class="{active: this.subMenuOpened}"
 					>
-						<a role="button" class="text-body"
+						<button type="button" class="text-body border-0 bg-transparent p-0" :aria-label="'Device actions for ' + (Peer.name || Peer.allowed_ip)" :aria-expanded="subMenuOpened"
 						   @click="this.subMenuOpened = true">
 							<h5 class="mb-0"><i class="bi bi-three-dots"></i></h5>
-						</a>
+						</button>
 						<Transition name="slide-fade">
 							<PeerSettingsDropdown
 								:dropup="getDropup"

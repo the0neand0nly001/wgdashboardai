@@ -13,11 +13,13 @@ const show = ref(false)
 </script>
 
 <template>
-	<a class="dropdown-item text-center px-0 rounded-3 position-relative" role="button"
+	<button type="button" class="dropdown-item text-center px-0 rounded-3 position-relative" :aria-label="title" :title="title"
 	   @mouseenter="show = true"
 	   @mouseleave="show = false"
+	   @focus="show = true"
+	   @blur="show = false"
 	   @click="emit('click')">
-		<i class="me-auto bi" :class="icon"></i>
+		<i class="me-auto bi" :class="icon" aria-hidden="true"></i>
 		<Transition name="zoomReversed">
 			<span
 				v-if="show"
@@ -27,7 +29,7 @@ const show = ref(false)
 			</small>
 		</span>
 		</Transition>
-	</a>
+	</button>
 </template>
 
 <style scoped>
