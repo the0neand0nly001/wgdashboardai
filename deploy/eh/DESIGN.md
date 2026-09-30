@@ -39,3 +39,19 @@ renew and close workflow was checked with simulated forwarding. This does not
 verify actual public forwarding, which still requires the live hosts and OCI
 ingress rules. Seventeen backend checks pass for authentication, routing, lease
 validation and migration preservation.
+
+2026-10-01: reviewed the deployed UI against the same references. The overview
+uses a single chart and flat device ledger, the forwarding page pairs a ledger
+with a working allocation form, and advanced tools stay in the drawer. The
+supplied icon and near-black, blue and amber palette remain consistent across
+the login, navigation, charts and forms. Device action and export buttons now
+have accessible names and native keyboard activation.
+
+The deployed overview and forwarding page were also checked at 390 x 844 via a
+temporary loopback-only QA relay. Both measured 390px document and scroll width.
+The relay allowed its own same-origin iframe for this test; the live gateway's
+frame protection was not changed. Mobile allocation appears before the ledger.
+Native QR generation rendered successfully, and exported device profiles
+connected to both real VPNs. Forwarding, renewal, Close and automatic expiry
+passed against connected disposable test devices. Public internet reachability
+still requires the OCI ingress rules documented in README.md.

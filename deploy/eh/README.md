@@ -16,28 +16,29 @@ it connects over this filtered private network and retains NET_ADMIN for its
 dedicated forwarding rules. The Docker socket is still a trusted administration
 interface and must remain private.
 VPN2 reaches VPN1's bridge through SSH at localhost:18791. Both configurations
-use standard WireGuard, `wg0`, and `/opt/amnezia/wireguard/wg0.conf`, as observed
-on VPN2; verify the same path on VPN1 before preparing it.
+use standard WireGuard, `wg0`, and `/opt/amnezia/wireguard/wg0.conf`, verified
+on both hosts. Each backend receives its public IP so exported profiles never
+use Docker's private bridge address.
 
 ## Current status
 
-This is a local implementation, not a deployed replacement. Do not stop the
-working dashboard before building and checking both private backends. The
-existing public Amnezia UDP ports stay unchanged.
+2026-10-01: the replacement is running through the two Git-backed Komodo stacks,
+`eh-wgdashboard-vpn1` and `eh-wgdashboard-vpn2`. VPN2 hosts the shared login and
+gateway. Both native backends import their existing peers successfully. The
+original public Amnezia UDP ports, stopped rollback containers and root-only
+config backups are retained. The old dashboard is stopped and its data is backed
+up. Rathole and other stacks were not changed.
 
-2026-09-30: both Amnezia config directories were persisted, retaining the exact
-config bytes, image, public port and startup command. Original stopped containers
-and root-only config backups remain on each host. The existing dashboard SSH
-link was extended to port 8791. Two new Git-backed Komodo stacks exist:
-`eh-wgdashboard-vpn1` and `eh-wgdashboard-vpn2`. Their initial backend/node build
-attempts timed out. Both hosts subsequently stopped responding to SSH banner
-exchange and Komodo health checks. The gateway cutover was **not** performed;
-current VM and container health needs recovery/verification before continuing.
-No other stacks, Rathole services or public dashboard routes were changed.
+Disposable WireGuard clients connected to both servers using native exported
+profiles and reached the same private dashboard address. The shared login,
+server switching, QR generation, unauthenticated API rejection and private
+backend isolation passed live checks. TCP/UDP forwarding to each connected test
+client, allocation, custom renewal, Close and automatic one-minute expiry passed.
+External forwarding probes failed and did not reach the host forwarding chains:
+**OCI ingress for TCP and UDP 45100–45120 remains required on both servers**.
+Internet reachability must be retested after those rules are added.
 
-The redesign and a labeled, unprivileged local preview are complete. See
-[DESIGN.md](DESIGN.md) for references and checks. Actual VPN connectivity,
-public forwarding and the live replacement are still unverified.
+See [DESIGN.md](DESIGN.md) for the visual direction, references and UI checks.
 
 ### Build away from small VPN hosts
 
@@ -91,13 +92,15 @@ inspect any existing build job before starting another deployment.
    Compose invocation with `--env-file`. Keep the files on their hosts; never
    commit them or put their contents in a public repository. Preserve quoted
    values: the password hash contains dollar signs.
-5. Build both stacks. Start the backend and node services on both hosts first.
+5. Build the images on the PC and import them on both hosts as described above.
+   Start the backend and node services on both hosts first through Komodo with
+   `run_build=false` and `auto_pull=false`.
    Check their logs, config import, stats and node-token authentication. The
    VPN2 gateway will fail to bind while the old dashboard owns localhost:8787;
    start it only at cutover. An equivalent direct invocation is:
 
    ```sh
-   sudo docker compose --env-file /etc/komodo/eh-wgdashboard/vpn2.env -f deploy/eh/compose.vpn2.yaml up -d --build backend node
+   sudo docker compose --env-file /etc/komodo/eh-wgdashboard/vpn2.env -f deploy/eh/compose.vpn2.yaml up -d --no-build --pull never backend node
    ```
 
 6. Back up `/etc/komodo/eh-vpn-dashboard/data`. Stop the **old dashboard
