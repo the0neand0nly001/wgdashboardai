@@ -10,6 +10,7 @@ services:
     environment:
       EH_NODE_TOKEN: ${EH_VPN1_TOKEN:?Set EH_VPN1_TOKEN}
       EH_PRIVATE_BRIDGE: "1"
+      EH_PUBLIC_IP: 132.145.61.126
       TZ: Europe/Dublin
     volumes:
       - ${EH_WG_CONFIG_DIR:?Run prepare.py on this host}:/etc/wireguard

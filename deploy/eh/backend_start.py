@@ -45,6 +45,9 @@ values = {
     'WireGuardConfiguration': {'autostart': '', 'peer_tracking': 'true'},
     'Other': {'welcome_session': 'false'},
 }
+if os.environ.get('EH_PUBLIC_IP'):
+    # Docker's private address is not a usable endpoint for downloaded profiles.
+    values['Peers'] = {'remote_endpoint': str(ipaddress.IPv4Address(os.environ['EH_PUBLIC_IP']))}
 for section, entries in values.items():
     if not config.has_section(section):
         config.add_section(section)
