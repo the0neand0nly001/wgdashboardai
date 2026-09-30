@@ -195,11 +195,11 @@ router.beforeEach(async (to, from, next) => {
 	const dashboardConfigurationStore = DashboardConfigurationStore();
 
 	if (to.meta.title){
-		document.title = to.meta.title + " | WGDashboard";
+		document.title = to.meta.title + (window.EH_GATEWAY ? " | Endless VPN" : " | WGDashboard");
 	}else if(to.params.id){
-		document.title = to.params.id + " | WGDashboard";
+		document.title = to.params.id + (window.EH_GATEWAY ? " | Endless VPN" : " | WGDashboard");
 	}else{
-		document.title = "WGDashboard"
+		document.title = window.EH_GATEWAY ? "Endless VPN" : "WGDashboard"
 	}
 	dashboardConfigurationStore.ShowNavBar = false;
 	document.querySelector(".loadingBar").classList.remove("loadingDone")

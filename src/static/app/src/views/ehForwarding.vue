@@ -1,50 +1,23 @@
 <script setup>
-import {ref, onMounted, onUnmounted} from 'vue';
-import {fetchGet, fetchPost} from '@/utilities/fetch.js';
+import {ref,computed,onMounted,onUnmounted} from 'vue';
+import {fetchGet,fetchPost} from '@/utilities/fetch.js';
 import {DashboardConfigurationStore} from '@/stores/DashboardConfigurationStore.js';
-const store = DashboardConfigurationStore();
-const peers = ref([]), leases = ref([]), address = ref(''), error = ref(''), busy = ref(false);
-const form = ref({peer:'', local_port:25565, protocol:'tcp', minutes:60, label:''});
-let timer;
-async function refresh(){
-  await fetchGet('/api/eh/overview', {}, r => {
-    const node=r.data?.find(n=>n.id===store.EHNode);
-    peers.value=node?.peers || []; address.value=node?.public_ip || '';
-  });
-  await fetchGet('/api/eh/leases', {}, r=>{if(r.status) leases.value=r.data; else error.value=r.message});
-}
-async function submit(path, body){
-  if(busy.value) return;
-  busy.value=true; error.value='';
-  try{await fetchPost(path,body,r=>{if(!r.status) error.value=r.message}); await refresh();}
-  finally{busy.value=false;}
-}
-async function copy(lease){
-  const value=`${address.value}:${lease.public_port}`;
-  try { await navigator.clipboard.writeText(value); }
-  catch { window.prompt('Copy this address',value); }
-}
-onMounted(()=>{refresh();timer=setInterval(()=>{if(!document.hidden&&!busy.value)refresh()},10000)});
-onUnmounted(()=>clearInterval(timer));
+const store=DashboardConfigurationStore();
+const peers=ref([]),leases=ref([]),address=ref(''),error=ref(''),busy=ref(false),copied=ref(''),now=ref(Date.now()/1000),renewals=ref({});
+const form=ref({peer:'',local_port:25565,protocol:'tcp',minutes:60,label:''});
+const server=computed(()=>store.EHNode==='vpn1'?'Oracle VPN1':'Oracle VPN2');
+const preview=Boolean(window.EH_PREVIEW);let timer,clockTimer,pending=false;
+async function refresh(){if(pending)return;pending=true;try{await fetchGet('/api/eh/overview',{},r=>{const node=r.data?.find(n=>n.id===store.EHNode);peers.value=node?.peers||[];address.value=node?.public_ip||'';});await fetchGet('/api/eh/leases',{},r=>{if(r.status)leases.value=r.data;else error.value=r.message});}finally{pending=false;}}
+async function submit(path,body){if(busy.value)return;busy.value=true;error.value='';try{await fetchPost(path,body,r=>{if(!r.status)error.value=r.message;});await refresh();}finally{busy.value=false;}}
+async function copy(lease){const value=`${address.value}:${lease.public_port}`;try{await navigator.clipboard.writeText(value);copied.value=lease.id;}catch{window.prompt('Copy this address',value);}}
+function remaining(lease){const mins=Math.max(0,Math.ceil((lease.expires-now.value)/60));return mins>60?`${Math.floor(mins/60)}h ${mins%60}m remaining`:`${mins}m remaining`;}
+function renewal(lease){return renewals.value[lease.id]??60;}
+function label(peer){return localStorage.getItem(`EHLabel:${store.EHNode}:${peer.key}`)||peer.name||peer.key.slice(0,10);}
+onMounted(()=>{refresh();timer=setInterval(()=>{if(!document.hidden&&!busy.value)refresh()},10000);clockTimer=setInterval(()=>now.value=Date.now()/1000,1000)});onUnmounted(()=>{clearInterval(timer);clearInterval(clockTimer)});
 </script>
 <template>
-<section class="mx-auto p-3 p-lg-4 text-body" style="max-width:1100px">
-  <p class="text-info mb-1">{{ store.EHNode==='vpn1'?'ORACLE VPN1':'ORACLE VPN2' }}</p><h2>Temporary port forwarding</h2>
-  <p class="text-secondary">Share a service on a VPN device through this server’s public address. An available port from 45100–45120 is allocated for each lease.</p>
-  <div v-if="error" class="alert alert-danger">{{ error }}</div>
-  <form class="border rounded-4 p-4 mb-4" @submit.prevent="submit('/api/eh/leases',form)">
-    <div class="row g-3"><label class="col-md-6">VPN device<select v-model="form.peer" class="form-select mt-1" required><option disabled value="">Choose a device</option><option v-for="p in peers" :key="p.key" :value="p.key">{{ p.tunnel_ip }} · {{ p.key.slice(0,10) }}</option></select></label>
-    <label class="col-md-3">Local port<input v-model.number="form.local_port" class="form-control mt-1" type="number" min="1" max="65535" required></label>
-    <label class="col-md-3">Protocol<select v-model="form.protocol" class="form-select mt-1"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="both">TCP + UDP</option></select></label>
-    <label class="col-md-6">Label<input v-model="form.label" class="form-control mt-1" maxlength="100" placeholder="Minecraft, game server…"></label>
-    <label class="col-md-6">Duration in minutes<input v-model.number="form.minutes" class="form-control mt-1" type="number" min="1" max="10080" required><div class="d-flex gap-2 mt-2"><button v-for="m in [15,60,240,1440]" :key="m" type="button" class="btn btn-sm btn-outline-secondary" @click="form.minutes=m">{{ m<60?`${m} min`:`${m/60} hr` }}</button></div></label></div>
-    <p class="small text-secondary mt-3">The device must be connected to this VPN and its service/firewall must accept the local port. The forwarded service is reachable from the public internet.</p>
-    <button class="btn btn-info" :disabled="busy">{{ busy?'Working…':'Allocate public port' }}</button>
-  </form>
-  <h5>Active leases</h5><p class="text-secondary small">Renew uses the duration selected above. Close removes the forwarding rules and existing tracked connections.</p>
-  <article v-for="lease in leases" :key="lease.id" class="border rounded-4 p-3 mb-3">
-    <div class="d-flex flex-wrap gap-3 align-items-center"><div class="flex-grow-1"><h5 class="text-info mb-1">{{ address }}:{{ lease.public_port }}</h5><div>{{ lease.label || 'Forwarded service' }} · {{ lease.protocol.toUpperCase() }} → {{ lease.ip }}:{{ lease.local_port }}</div><small class="text-secondary">Expires {{ new Date(lease.expires*1000).toLocaleString() }}</small></div>
-    <button class="btn btn-outline-secondary" @click="copy(lease)">Copy address</button><button class="btn btn-outline-info" :disabled="busy" @click="submit(`/api/eh/leases/${lease.id}/renew`,{minutes:form.minutes})">Renew</button><button class="btn btn-outline-danger" :disabled="busy" @click="submit(`/api/eh/leases/${lease.id}/close`,{})">Close</button></div>
-  </article><p v-if="!leases.length" class="text-secondary">No active forwarded ports on this server.</p>
+<section class="eh-page"><header class="eh-page-head"><div><p class="eh-kicker">{{ server }} / public forwarding</p><h1>Public ports</h1><p class="eh-intro">Share a service on a connected VPN device. Each address expires at the time you choose.</p></div><span class="eh-updated eh-mono">{{ leases.length }} / 21 allocated</span></header><div v-if="preview" class="eh-alert eh-preview-note" role="status">Design preview · sample devices. Forwarding is simulated.</div><div v-if="error" class="eh-alert" role="alert">{{ error }}</div>
+  <div class="eh-forward-layout"><section class="eh-lease-list" aria-labelledby="leases-title"><div class="eh-section-heading"><h2 id="leases-title">Active forwarding <small>/ {{ leases.length }}</small></h2><button class="eh-text-button" @click="refresh">Refresh</button></div><article v-for="lease in leases" :key="lease.id" class="eh-lease-row"><div class="eh-lease-top"><div><h3 class="eh-lease-address eh-mono">{{ address }}:{{ lease.public_port }}</h3><p class="eh-lease-description">{{ lease.label||'Forwarded service' }} <span class="eh-mono">· {{ lease.protocol.toUpperCase() }}</span></p><p class="eh-lease-description eh-mono">→ {{ lease.ip }}:{{ lease.local_port }}</p><span class="eh-lease-expiry">{{ remaining(lease) }} · expires {{ new Date(lease.expires*1000).toLocaleString() }}</span></div><button class="eh-secondary" :aria-label="`Copy address ${address}:${lease.public_port}`" @click="copy(lease)">{{ copied===lease.id?'Copied':'Copy address' }}</button></div><div v-if="copied===lease.id" class="eh-feedback" role="status">Address copied</div><div class="eh-lease-actions"><label class="eh-renew-label">Renew for<input v-model.number="renewals[lease.id]" placeholder="60" class="eh-input eh-mono" type="number" min="1" max="10080" :aria-label="`Renewal minutes for port ${lease.public_port}`">min</label><button class="eh-text-button" :disabled="busy || !Number.isInteger(renewal(lease)) || renewal(lease)<1 || renewal(lease)>10080" @click="submit(`/api/eh/leases/${lease.id}/renew`,{minutes:renewal(lease)})">Renew</button><button class="eh-text-button eh-close" :disabled="busy" :aria-label="`Close port ${lease.public_port}`" @click="submit(`/api/eh/leases/${lease.id}/close`,{})">Close port</button></div></article><div v-if="!leases.length" class="eh-lease-empty"><h3>No public ports open</h3><p class="eh-intro">Allocate an address when you want to share a Minecraft server or another service. Close it when you’re finished, or let it expire.</p></div><p class="eh-footnote">Forwarding is specific to {{ server }}. Renew starts a new countdown; Close removes the rules and tracked connections.</p></section>
+  <aside class="eh-allocation" aria-labelledby="allocation-title"><h2 id="allocation-title">Allocate a port</h2><p class="eh-port-note">Available range <span class="eh-mono" style="color:var(--eh-text)">45100–45120</span></p><form @submit.prevent="submit('/api/eh/leases',form)"><label class="eh-form-label">VPN device<select v-model="form.peer" class="eh-select" required><option disabled value="">Choose a device</option><option v-for="peer in peers" :key="peer.key" :value="peer.key">{{ label(peer) }} · {{ peer.tunnel_ip }}</option></select></label><div class="eh-form-pair"><label class="eh-form-label">Local service port<input v-model.number="form.local_port" class="eh-input eh-mono" type="number" min="1" max="65535" required></label><label class="eh-form-label">Protocol<select v-model="form.protocol" class="eh-select"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="both">TCP + UDP</option></select></label></div><label class="eh-form-label">Label <span class="text-secondary">(optional)</span><input v-model="form.label" class="eh-input" maxlength="100" placeholder="Minecraft server"></label><label class="eh-form-label">Duration in minutes<input v-model.number="form.minutes" class="eh-input eh-mono" type="number" min="1" max="10080" required></label><div class="eh-presets" aria-label="Duration presets"><button v-for="minutes in [15,60,240,1440]" :key="minutes" type="button" :class="{active:form.minutes===minutes}" @click="form.minutes=minutes">{{ minutes<60?`${minutes} min`:`${minutes/60} hr` }}</button></div><button class="eh-action" :disabled="busy">{{ busy?'Allocating…':'Allocate public address →' }}</button><p class="eh-footnote">The service is public while the port is open. Keep the device connected to this VPN and allow its local service port in its firewall. Duration: 1 minute to 7 days.</p></form></aside></div>
 </section>
 </template>

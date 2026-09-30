@@ -7,6 +7,7 @@ import {GetLocale} from "@/utilities/locale.js";
 import LocaleText from "@/components/text/localeText.vue";
 import SignInInput from "@/components/signIn/signInInput.vue";
 import SignInTOTP from "@/components/signIn/signInTOTP.vue";
+import endlessIcon from '@/assets/eh/endless-icon.png';
 
 export default {
 	name: "signin",
@@ -30,7 +31,7 @@ export default {
 			]);
 		}
 		store.removeActiveCrossServer();
-		return {store, theme, totpEnabled, version}
+		return {store, theme, totpEnabled, version, endlessIcon}
 	},
 	data(){
 		return {
@@ -74,6 +75,8 @@ export default {
 							}
 						}
 					}else{
+						this.loginError = true;
+						this.loginErrorMessage = response.message || 'Sign in failed';
 						this.store.newMessage("Server", response.message, "danger")
 						document.querySelectorAll("input[required]").forEach(x => {
 							x.classList.remove("is-valid")
@@ -81,7 +84,7 @@ export default {
 						});
 						this.loading = false
 					}
-					
+
 				})
 			}else{
 				document.querySelectorAll("input[required]").forEach(x => {
@@ -100,7 +103,12 @@ export default {
 </script>
 
 <template>
-	<div class="container-fluid login-container-fluid d-flex main flex-column py-4 text-body h-100" 
+	<div v-if="store.EHGateway" class="eh-signin">
+		<section class="eh-signin-identity"><img :src="endlessIcon" alt="Endless VPN icon" width="95" height="95"><p class="eh-kicker">ENDLESS HORIZONS / NETWORK</p><h1>Endless VPN</h1><p>Manage your devices, monitor traffic and share services across your two VPN servers.</p><div class="eh-signin-servers"><div>Oracle VPN1<span>WireGuard</span></div><div>Oracle VPN2<span>WireGuard · dashboard host</span></div></div></section>
+		<section class="eh-signin-form" aria-labelledby="sign-in-title"><h2 id="sign-in-title">Admin sign in</h2><p class="eh-intro">One account for both servers.</p><form @submit.prevent="auth"><label class="eh-form-label" for="eh-username">Username<input id="eh-username" v-model="data.username" class="eh-input" name="username" autocomplete="username" required :disabled="loading"></label><label class="eh-form-label" for="eh-password">Password<input id="eh-password" v-model="data.password" class="eh-input" name="password" type="password" autocomplete="current-password" required :disabled="loading"></label><p v-if="loginError" class="eh-alert" role="alert">{{ loginErrorMessage }}</p><button class="eh-action" ref="signInBtn" :disabled="loading || !formValid">{{ loading?'Signing in…':'Sign in →' }}</button><p class="eh-footnote">Dashboard access requires a connection to either VPN.</p></form></section>
+		<footer class="eh-signin-footer"><span>Endless Horizons · private network</span><span>Powered by <a href="https://github.com/WGDashboard/WGDashboard" target="_blank" rel="noopener">WGDashboard</a> {{ version }}</span></footer>
+	</div>
+	<div v-else class="container-fluid login-container-fluid d-flex main flex-column py-4 text-body h-100"
 	     style="overflow-y: scroll"
 	     :data-bs-theme="this.theme">
 		<div class="login-box m-auto" >
@@ -125,7 +133,7 @@ export default {
 						       class="form-control rounded-3" id="username" placeholder="Username">
 						<label for="floatingInput" class="d-flex">
 							<i class="bi bi-person-circle me-2"></i>
-							<LocaleText t="Username"></LocaleText>	
+							<LocaleText t="Username"></LocaleText>
 						</label>
 					</div>
 					<div class="form-floating mb-2">
@@ -137,7 +145,7 @@ export default {
 						       class="form-control rounded-3" id="password" placeholder="Password">
 						<label for="floatingInput" class="d-flex">
 							<i class="bi bi-key-fill me-2"></i>
-							<LocaleText t="Password"></LocaleText>	
+							<LocaleText t="Password"></LocaleText>
 						</label>
 					</div>
 					<div class="form-floating mb-2" v-if="this.totpEnabled">
@@ -147,16 +155,16 @@ export default {
 						       :disabled="loading"
 						       placeholder="totp"
 						       v-model="this.data.totp"
-						       class="form-control rounded-3" 
-						       maxlength="6" 
-						       inputmode="numeric" 
+						       class="form-control rounded-3"
+						       maxlength="6"
+						       inputmode="numeric"
 						       autocomplete="one-time-code">
 						<label for="floatingInput" class="d-flex">
 							<i class="bi bi-lock-fill me-2"></i>
 							<LocaleText t="OTP from your authenticator"></LocaleText>
 						</label>
 					</div>
-					<button class="btn btn-lg btn-dark ms-auto mt-5 w-100 d-flex btn-brand signInBtn rounded-3" 
+					<button class="btn btn-lg btn-dark ms-auto mt-5 w-100 d-flex btn-brand signInBtn rounded-3"
 					        :disabled="this.loading || !this.formValid"
 					        ref="signInBtn">
 							<span v-if="!this.loading" class="d-flex w-100">

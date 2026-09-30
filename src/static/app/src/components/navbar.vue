@@ -57,14 +57,14 @@ export default {
 <template>
 	<div class="col-md-3 col-lg-2 d-md-block p-2 navbar-container bg-transparent"
 	     :class="{active: this.dashboardConfigurationStore.ShowNavBar, 'eh-nav': dashboardConfigurationStore.EHGateway}"
-	     @click="($event.target.closest('a') && dashboardConfigurationStore.EHGateway) && (dashboardConfigurationStore.ShowNavBar = false)"
+	     @click="($event.target.closest('a[href]') && dashboardConfigurationStore.EHGateway) && (dashboardConfigurationStore.ShowNavBar = false)"
 	     :data-bs-theme="dashboardConfigurationStore.Configuration.Server.dashboard_theme"
 	>
-		<nav id="sidebarMenu" class=" bg-body-tertiary sidebar border h-100 rounded-3 shadow overflow-y-scroll" >
+		<nav id="sidebarMenu" aria-label="Advanced tools" class=" bg-body-tertiary sidebar border h-100 rounded-3 shadow overflow-y-scroll" >
 			<div class="sidebar-sticky ">
 				<div class="text-white text-center m-0 py-3 mb-2 btn-brand">
 					<h5 class="mb-0">
-						{{ dashboardConfigurationStore.EHGateway ? 'Endless Horizons VPN' : 'WGDashboard' }}
+						{{ dashboardConfigurationStore.EHGateway ? 'Advanced tools' : 'WGDashboard' }}
 					</h5>
 					<small class="ms-auto" v-if="getActiveCrossServer !== undefined">
 						<i class="bi bi-hdd-rack-fill me-2"></i>{{getActiveCrossServer.host}}
@@ -79,13 +79,13 @@ export default {
 						<RouterLink class="nav-link rounded-3"
 						            to="/" exact-active-class="active">
 							<i class="bi bi-house me-2"></i>
-							<LocaleText t="Home"></LocaleText>	
+							<LocaleText t="Home"></LocaleText>
 						</RouterLink></li>
 					<li class="nav-item">
-						<RouterLink class="nav-link rounded-3" to="/settings" 
+						<RouterLink class="nav-link rounded-3" to="/settings"
 						            active-class="active">
 							<i class="bi bi-gear me-2"></i>
-							<LocaleText t="Settings"></LocaleText>	
+							<LocaleText t="Settings"></LocaleText>
 						</RouterLink>
 					</li>
 					<li class="nav-item">
@@ -103,10 +103,10 @@ export default {
 						</RouterLink>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link rounded-3" role="button" @click="openAgentModal = true">
+						<button type="button" class="nav-link rounded-3 border-0 bg-transparent text-start w-100" @click="openAgentModal = true">
 							<i class="bi bi-question-circle me-2"></i>
 							<LocaleText t="Help"></LocaleText>
-						</a>
+						</button>
 					</li>
 				</ul>
 				<hr class="text-body my-2">
@@ -146,12 +146,12 @@ export default {
 				<hr class="text-body my-2">
 				<ul class="nav flex-column px-2 mb-3">
 					<li class="nav-item">
-						<a class="nav-link text-danger rounded-3" 
-					                        @click="this.dashboardConfigurationStore.signOut()" 
-					                        role="button" style="font-weight: bold">
+						<button type="button" class="nav-link text-danger rounded-3 border-0 bg-transparent text-start w-100"
+					                        @click="this.dashboardConfigurationStore.signOut()"
+					                        style="font-weight: bold">
 							<i class="bi bi-box-arrow-left me-2"></i>
-							<LocaleText t="Sign Out"></LocaleText>	
-						</a>
+							<LocaleText t="Sign Out"></LocaleText>
+						</button>
 					</li>
 					<li class="nav-item" style="font-size: 0.8rem">
 						<a :href="this.updateUrl" v-if="this.updateAvailable" class="text-decoration-none rounded-3" target="_blank">
@@ -189,7 +189,7 @@ export default {
 		display: none;
 		animation-timing-function: cubic-bezier(0.82, 0.58, 0.17, 0.9);
 	}
-	
+
 	.navbar-container.active{
 		animation-direction: normal;
 		display: block !important;
@@ -207,9 +207,9 @@ export default {
 	@media screen and (max-width: 768px){
 		.navbar-container{
 			height: calc(100dvh - 58px);
-		}	
+		}
 	}
-	
+
 
 }
 

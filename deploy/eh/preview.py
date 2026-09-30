@@ -18,6 +18,7 @@ import node
 node.firewall = lambda: None
 node.forget_connections = lambda port: None
 node.peer_ip = lambda key: '10.8.1.2'
+node.run = lambda *args, **kwargs: ''  # No host commands in the simulation.
 now = time.time()
 node.CACHE = {'ok': True, 'time':now,'public_ip':'192.0.2.10', 'load':[.12,.09,.08],
               'peers':[{'key':'example-device-key', 'tunnel_ip':'10.8.1.2/32','endpoint':'198.51.100.20:50000',
@@ -37,4 +38,15 @@ def preview_upstream(identity, path, method='GET', body=None, content_type='appl
         result.headers['Content-Type'] = response.content_type
         return result
 gateway.upstream = preview_upstream
+@gateway.app.get('/preview-mobile')
+def mobile_preview():
+    # The iframe renders the real application at a phone viewport, without
+    # relying on browser-specific device emulation. This route exists only here.
+    return '<!doctype html><html><head><title>Endless VPN mobile preview</title></head><body style="margin:0;background:#080c10;color:#9aa9b7;font:14px sans-serif"><p style="margin:16px">Mobile layout check · 390 × 844</p><iframe title="Endless VPN at phone size" src="/#/overview" style="display:block;border:1px solid #26303a;width:390px;height:844px;margin:16px"></iframe></body></html>'
+@gateway.app.after_request
+def mark_preview(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    if response.content_type.startswith('text/html'):
+        response.set_data(response.get_data().replace(b'<head>',b'<head><script>window.EH_PREVIEW=true;</script>',1))
+    return response
 gateway.app.run(host='0.0.0.0',port=8787,threaded=True)

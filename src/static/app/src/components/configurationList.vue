@@ -4,13 +4,14 @@ import ConfigurationCard from "@/components/configurationListComponents/configur
 import LocaleText from "@/components/text/localeText.vue";
 import SystemStatus from "@/components/systemStatusComponents/systemStatusWidget.vue";
 import {GetLocale} from "@/utilities/locale.js";
+import {DashboardConfigurationStore} from '@/stores/DashboardConfigurationStore.js';
 
 export default {
 	name: "configurationList",
 	components: {SystemStatus, LocaleText, ConfigurationCard},
 	async setup(){
 		const wireguardConfigurationsStore = WireguardConfigurationsStore();
-		return {wireguardConfigurationsStore}
+		return {wireguardConfigurationsStore,dashboardStore:DashboardConfigurationStore()}
 	},
 	data(){
 		return {
@@ -60,9 +61,10 @@ export default {
 </script>
 
 <template>
-	<div class="mt-md-5 mt-3">
-		<div class="container-fluid">
-			<SystemStatus></SystemStatus>
+	<div :class="dashboardStore.EHGateway?'eh-page eh-configurations':'mt-md-5 mt-3'">
+		<div :class="dashboardStore.EHGateway?'':'container-fluid'">
+			<header v-if="dashboardStore.EHGateway" class="eh-page-head"><div><p class="eh-kicker">{{ dashboardStore.EHNode==='vpn1'?'Oracle VPN1':'Oracle VPN2' }} / devices</p><h1>Devices &amp; QR codes</h1><p class="eh-intro">Open a WireGuard configuration to manage its devices and export connection profiles.</p></div></header>
+			<SystemStatus v-else></SystemStatus>
 			<div class="d-flex mb-4 configurationListTitle align-items-md-center gap-2 flex-column flex-md-row">
 				<h2 class="text-body d-flex mb-0">
 					<LocaleText t="WireGuard Configurations"></LocaleText>

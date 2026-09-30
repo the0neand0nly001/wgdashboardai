@@ -17,6 +17,32 @@ This is a local implementation, not a deployed replacement. Do not stop the
 working dashboard before building and checking both private backends. The
 existing public Amnezia UDP ports stay unchanged.
 
+2026-09-30: both Amnezia config directories were persisted, retaining the exact
+config bytes, image, public port and startup command. Original stopped containers
+and root-only config backups remain on each host. The existing dashboard SSH
+link was extended to port 8791. Two new Git-backed Komodo stacks exist:
+`eh-wgdashboard-vpn1` and `eh-wgdashboard-vpn2`. Their initial backend/node build
+attempts timed out. Both hosts subsequently stopped responding to SSH banner
+exchange and Komodo health checks. The gateway cutover was **not** performed;
+current VM and container health needs recovery/verification before continuing.
+No other stacks, Rathole services or public dashboard routes were changed.
+
+The redesign and a labeled, unprivileged local preview are complete. See
+[DESIGN.md](DESIGN.md) for references and checks. Actual VPN connectivity,
+public forwarding and the live replacement are still unverified.
+
+### Build away from small VPN hosts
+
+Avoid compiling the Vue bundle on the 1 GB VPSs. Build the two images on the PC,
+tag them `eh-wgdashboard-backend:local` and `eh-wgdashboard-services:local`, export
+them with `docker image save`, transfer the archive through the existing SSH
+connection, and verify its SHA-256 before `sudo docker image load -i ARCHIVE` on
+each host. Inspect the platform first; these PC builds are Linux/amd64.
+Set the two dashboard stacks' `run_build` to false and `auto_pull` to false, so
+Komodo starts the imported images. Import images before deploying; an absent
+image must not be substituted with the upstream public image. Recover and
+inspect any existing build job before starting another deployment.
+
 ## Prepare and deploy with Komodo
 
 1. Push this fork after reviewing the changes. Configure a Git-backed Komodo

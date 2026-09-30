@@ -1,5 +1,9 @@
+FROM docker:29-cli AS docker_cli
 FROM python:3.12-slim-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends docker.io iptables iproute2 conntrack && rm -rf /var/lib/apt/lists/*
+# Only the client is needed; the host already runs Docker. Debian's 20.10
+# client cannot negotiate with engines that require API 1.44 or newer.
+COPY --from=docker_cli /usr/local/bin/docker /usr/local/bin/docker
+RUN apt-get update && apt-get install -y --no-install-recommends iptables iproute2 conntrack && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir Flask==3.1.2 requests==2.32.5 gunicorn==25.0.3
 WORKDIR /app
 COPY deploy/eh /app

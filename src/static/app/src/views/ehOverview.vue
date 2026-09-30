@@ -1,67 +1,41 @@
 <script setup>
-import {ref, computed, onMounted, onUnmounted} from 'vue';
+import {ref,computed,onMounted,onUnmounted} from 'vue';
 import {fetchGet} from '@/utilities/fetch.js';
 import {DashboardConfigurationStore} from '@/stores/DashboardConfigurationStore.js';
-const store = DashboardConfigurationStore();
-const nodes = ref([]), error = ref(''), updated = ref(null);
-const selected = computed(() => nodes.value.find(n => n.id === store.EHNode));
-let timer, pending = false;
-async function refresh() {
-  if (pending || document.hidden) return;
-  pending = true;
-  try { await fetchGet('/api/eh/overview', {}, r => {
-    if (r.status) { nodes.value = r.data; updated.value = new Date(); error.value = ''; }
-    else error.value = r.message;
-  }); } finally { pending = false; }
-}
-function bytes(n) {
-  if (!Number.isFinite(n)) return '—';
-  const units = ['B','KB','MB','GB','TB']; let i=0;
-  while (n >= 1024 && i < 4) { n /= 1024; i++; }
-  return `${n.toFixed(i ? 1 : 0)} ${units[i]}`;
-}
-function curve(history, field) {
-  if (!history?.length) return '';
-  const top = Math.max(1, ...history.flatMap(s => [s.upload, s.download]));
-  const first = history[0].time, span = Math.max(1, history.at(-1).time - first);
-  return history.map(s => `${((s.time-first)/span*600).toFixed(1)},${(130-s[field]/top*120).toFixed(1)}`).join(' ');
-}
-function label(peer) {
-  return localStorage.getItem(`EHLabel:${store.EHNode}:${peer.key}`) || peer.key.slice(0, 10);
-}
-function rename(peer) {
-  const name = window.prompt('Device name (saved in this browser)', label(peer));
-  if (name !== null) { localStorage.setItem(`EHLabel:${store.EHNode}:${peer.key}`, name.trim().slice(0, 80)); refresh(); }
-}
-onMounted(() => { refresh(); timer = setInterval(refresh, 5000); });
-onUnmounted(() => clearInterval(timer));
+const store=DashboardConfigurationStore();
+const nodes=ref([]),error=ref(''),updated=ref(null),search=ref(''),activity=ref('all'),range=ref(60);
+const preview=Boolean(window.EH_PREVIEW),chart=ref(null),chartWidth=ref(760);
+const plotWidth=computed(()=>Math.max(150,chartWidth.value-70));
+const selected=computed(()=>nodes.value.find(n=>n.id===store.EHNode));
+const selectedName=computed(()=>store.EHNode==='vpn1'?'Oracle VPN1':'Oracle VPN2');
+const devices=computed(()=>(selected.value?.peers||[]).filter(p=>{
+  const query=search.value.trim().toLowerCase();
+  return (!query||[label(p),p.tunnel_ip,p.endpoint,p.key].some(v=>String(v||'').toLowerCase().includes(query))) && (activity.value==='all'||(activity.value==='recent'?p.active:!p.active));
+}));
+const traffic=computed(()=>({upload:(selected.value?.peers||[]).reduce((n,p)=>n+p.upload_speed,0),download:(selected.value?.peers||[]).reduce((n,p)=>n+p.download_speed,0)}));
+const history=computed(()=>(selected.value?.history||[]).filter(s=>s.time>=(selected.value?.time||Date.now()/1000)-range.value*60));
+const scale=computed(()=>Math.max(1,...history.value.flatMap(s=>[s.upload,s.download])));
+const chartStart=computed(()=>(selected.value?.time||Date.now()/1000)-range.value*60);
+let timer,observer,pending=false;
+async function refresh(){if(pending||document.hidden)return;pending=true;try{await fetchGet('/api/eh/overview',{},r=>{if(r.status){nodes.value=r.data;updated.value=new Date();error.value='';}else error.value=r.message;});}finally{pending=false;}}
+function bytes(n){if(!Number.isFinite(n))return '—';const units=['B','KB','MB','GB','TB'];let i=0;while(n>=1024&&i<4){n/=1024;i++;}return `${n.toFixed(i?1:0)} ${units[i]}`;}
+function curve(field){return history.value.map(s=>`${(55+(s.time-chartStart.value)/(range.value*60)*plotWidth.value).toFixed(1)},${(180-s[field]/scale.value*165).toFixed(1)}`).join(' ');}
+function clock(seconds){return new Date(seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function label(p){return localStorage.getItem(`EHLabel:${store.EHNode}:${p.key}`)||p.name||p.key.slice(0,10);}
+function rename(p){const name=window.prompt('Device name (saved in this browser)',label(p));if(name!==null){localStorage.setItem(`EHLabel:${store.EHNode}:${p.key}`,name.trim().slice(0,80));refresh();}}
+onMounted(()=>{refresh();timer=setInterval(refresh,5000);observer=new ResizeObserver(entries=>chartWidth.value=Math.max(220,entries[0].contentRect.width));observer.observe(chart.value);});onUnmounted(()=>{clearInterval(timer);observer?.disconnect();});
 </script>
 <template>
-  <section class="eh-overview mx-auto p-3 p-lg-4 text-body">
-    <div class="d-flex align-items-center justify-content-between mb-4"><div><p class="text-info mb-1">PRIVATE NETWORK</p><h2 class="mb-1">Your VPN overview</h2><p class="text-secondary mb-0">Both servers at a glance. Controls follow the server selected above.</p></div><button class="btn btn-outline-secondary" @click="refresh">Refresh</button></div>
-    <p v-if="error" class="alert alert-danger">{{ error }}</p>
-    <div class="row g-3 mb-4">
-      <div v-for="node in nodes" :key="node.id" class="col-md-6"><article class="node-card p-4 rounded-4 border" :class="{'border-info':node.id===store.EHNode}">
-        <div class="d-flex justify-content-between"><h4>{{ node.name }}</h4><span :class="node.ok ? 'text-success':'text-warning'">{{ node.ok ? 'Online':'Unavailable' }}</span></div>
-        <p class="text-secondary">{{ node.public_ip || 'Address unavailable' }} · {{ node.peers.filter(p=>p.active).length }} recently active / {{ node.peers.length }} devices</p>
-        <div class="d-flex gap-4"><div><small class="text-secondary">UPLOAD</small><h5>{{ bytes(node.peers.reduce((n,p)=>n+p.upload_speed,0)) }}/s</h5></div><div><small class="text-secondary">DOWNLOAD</small><h5>{{ bytes(node.peers.reduce((n,p)=>n+p.download_speed,0)) }}/s</h5></div></div>
-        <small v-if="node.load" class="text-secondary">Host load (1 / 5 / 15 min): {{ node.load.map(n=>n.toFixed(2)).join(' / ') }}</small>
-        <p v-if="node.error" class="text-warning mt-2 mb-0">{{ node.error }}</p>
-        <button v-if="node.id!==store.EHNode" class="btn btn-sm btn-outline-info mt-3" @click="store.selectEHNode(node.id)">Manage {{ node.name }}</button>
-      </article></div>
-    </div>
-    <template v-if="selected">
-      <div class="node-card border rounded-4 p-4 mb-4"><h5>{{ selected.name }} · traffic over the last 24 hours</h5><p class="text-secondary small">Upload <span class="text-info">●</span> · Download <span class="text-success">●</span> · Stored since this monitor starts</p>
-        <svg v-if="selected.history?.length" viewBox="0 0 600 140" role="img" aria-label="Upload and download history" class="traffic-chart"><polyline :points="curve(selected.history,'upload')" fill="none" stroke="#38bdf8" stroke-width="2"/><polyline :points="curve(selected.history,'download')" fill="none" stroke="#34d399" stroke-width="2"/></svg>
-        <div v-if="selected.history?.length" class="d-flex justify-content-between small text-secondary"><span>{{ new Date(selected.history[0].time*1000).toLocaleTimeString() }}</span><span>Scale: 0–{{ bytes(Math.max(...selected.history.flatMap(s=>[s.upload,s.download]))) }}/s</span><span>{{ new Date(selected.history.at(-1).time*1000).toLocaleTimeString() }}</span></div>
-        <p v-else class="text-secondary">Traffic history will appear after the first samples.</p>
-      </div>
-      <div class="d-flex justify-content-between align-items-center mb-3"><h5>{{ selected.name }} · devices</h5><RouterLink to="/configurations" class="btn btn-sm btn-outline-info">Manage devices &amp; QR codes</RouterLink></div>
-      <div class="table-responsive border rounded-4"><table class="table align-middle mb-0"><thead><tr><th>Device</th><th>Tunnel IP</th><th>Activity</th><th>Upload</th><th>Download</th><th>Tracked totals ↑ / ↓</th></tr></thead><tbody><tr v-for="peer in selected.peers" :key="peer.key"><td><button class="btn btn-link p-0 text-info" @click="rename(peer)">{{ label(peer) }}</button><div class="small text-secondary">{{ peer.endpoint }}</div></td><td>{{ peer.tunnel_ip }}</td><td><span :class="peer.active?'text-success':'text-secondary'">{{ peer.active?'Recent':'Inactive' }}</span><div class="small text-secondary">{{ peer.handshake ? new Date(peer.handshake*1000).toLocaleString() : 'No handshake' }}</div></td><td>{{ bytes(peer.upload_speed) }}/s</td><td>{{ bytes(peer.download_speed) }}/s</td><td>{{ bytes(peer.total_upload) }} / {{ bytes(peer.total_download) }}</td></tr><tr v-if="!selected.peers.length"><td colspan="6" class="text-secondary p-4">No devices available from this server.</td></tr></tbody></table></div>
-    </template>
-    <p class="small text-secondary mt-3">{{ updated ? `Updated ${updated.toLocaleTimeString()}` : 'Loading servers…' }} · Recent activity means a handshake within 3 minutes; it is not a guaranteed connection status.</p>
-  </section>
+<section class="eh-page">
+  <header class="eh-page-head"><div><p class="eh-kicker">{{ selectedName }} / wg0</p><h1>Network overview</h1><p class="eh-intro">Traffic and devices on the selected VPN.</p></div><div class="eh-updated"><span class="eh-dot" :class="{online:selected?.ok}"></span>{{ updated?`Updated ${clock(updated.getTime()/1000)}`:'Connecting…' }}<button class="eh-text-button" @click="refresh">Refresh</button></div></header>
+  <div v-if="preview" class="eh-alert eh-preview-note" role="status">Design preview · sample device and traffic data. Forwarding is simulated.</div><div v-if="error" class="eh-alert" role="alert">{{ error }}</div>
+  <div class="eh-overview-grid">
+    <section class="eh-traffic" aria-labelledby="traffic-title"><div class="eh-section-heading"><h2 id="traffic-title">Traffic</h2><div class="eh-range" aria-label="Traffic time range"><button v-for="r in [15,60,1440]" :key="r" :aria-pressed="range===r" @click="range=r">{{ r===15?'15m':r===60?'1h':'24h' }}</button></div></div>
+      <dl class="eh-traffic-numbers"><div><dt><span class="eh-line-key"></span>Device upload</dt><dd class="eh-mono">{{ selected?.ok?bytes(traffic.upload):'—' }}<small>/s</small></dd></div><div><dt><span class="eh-line-key down"></span>Device download</dt><dd class="eh-mono">{{ selected?.ok?bytes(traffic.download):'—' }}<small>/s</small></dd></div></dl>
+      <div ref="chart"><svg v-if="history.length" :viewBox="`0 0 ${chartWidth} 210`" class="eh-chart" role="img" :aria-label="`Device upload and download over the last ${range} minutes, scale 0 to ${bytes(scale)} per second`"><title>Upload and download traffic</title><g v-for="tick in [0,0.5,1]" :key="tick"><line x1="55" :x2="55+plotWidth" :y1="180-tick*165" :y2="180-tick*165" class="grid"/><text x="46" :y="184-tick*165" text-anchor="end">{{ bytes(scale*tick).replace(' ','') }}</text></g><g v-for="tick in [0,0.25,0.5,0.75,1]" :key="tick"><line :x1="55+tick*plotWidth" :x2="55+tick*plotWidth" y1="15" y2="180" class="grid"/><text :x="55+tick*plotWidth" y="203" :text-anchor="tick===0?'start':tick===1?'end':'middle'">{{ clock(chartStart+tick*range*60) }}</text></g><polyline :points="curve('upload')" fill="none" stroke="#55a0ff" stroke-width="2"/><polyline :points="curve('download')" fill="none" stroke="#ffb957" stroke-width="2"/></svg><div v-else class="eh-empty">{{ selected?.ok?'Waiting for the first traffic samples.':'Traffic is unavailable while this server is disconnected.' }}</div></div><div class="eh-chart-note"><span>Minute averages · local time</span><span>History starts when monitoring begins.</span></div>
+    </section>
+    <aside class="eh-fleet" aria-labelledby="servers-title"><h2 id="servers-title">Your servers</h2><article v-for="node in nodes" :key="node.id" class="eh-server-row"><div class="eh-server-title"><span>{{ node.name }}</span><span class="eh-status" :class="{online:node.ok}"><span class="eh-dot" :class="{online:node.ok}"></span>{{ node.ok?'Online':'Unavailable' }}</span></div><p class="eh-server-ip eh-mono">{{ node.public_ip||'Address unavailable' }}</p><div class="eh-server-detail"><span>{{ node.peers.filter(p=>p.active).length }} recent / {{ node.peers.length }} devices</span><span v-if="node.load" class="eh-mono" title="Host load over one minute">{{ node.load[0].toFixed(2) }} load</span></div><p v-if="node.error" class="eh-server-error">{{ node.error }}</p><button v-if="node.id!==store.EHNode" class="eh-text-button" @click="store.selectEHNode(node.id)">Manage server →</button><span v-else class="eh-device-sub">Selected server</span></article><p class="eh-port-note"><span><strong class="eh-mono">45100–45120</strong>Public forwarding range, per server.</span><RouterLink to="/forwarding" class="eh-text-button">Manage ports →</RouterLink></p></aside>
+  </div>
+  <section class="eh-devices" aria-labelledby="devices-title"><div class="eh-devices-toolbar"><h2 id="devices-title">Devices <small class="text-secondary">/ {{ selected?.peers?.length||0 }}</small></h2><div class="eh-device-search"><input v-model="search" class="eh-input" type="search" aria-label="Search devices" placeholder="Search name or address"><select v-model="activity" class="eh-select" aria-label="Filter device activity"><option value="all">All activity</option><option value="recent">Recent</option><option value="inactive">Inactive</option></select></div></div><table class="eh-device-table"><thead><tr><th scope="col">Device / endpoint</th><th scope="col">Tunnel address</th><th scope="col">Last handshake</th><th scope="col" class="number">Upload /s</th><th scope="col" class="number">Download /s</th><th scope="col" class="number">Tracked ↑ / ↓</th></tr></thead><tbody><tr v-for="peer in devices" :key="peer.key"><td><button class="eh-device-name" :aria-label="`Rename device ${label(peer)}`" @click="rename(peer)">{{ label(peer) }}</button><span class="eh-device-sub eh-mono">{{ peer.endpoint }}</span></td><td data-label="Tunnel address" class="eh-mono">{{ peer.tunnel_ip }}</td><td data-label="Last handshake"><span class="eh-status" :class="{online:peer.active}"><span class="eh-dot" :class="{online:peer.active}"></span>{{ peer.active?'Recent activity':'Inactive' }}</span><span class="eh-device-sub">{{ peer.handshake?new Date(peer.handshake*1000).toLocaleString():'No handshake' }}</span></td><td data-label="Upload /s" class="number eh-mono">{{ bytes(peer.upload_speed) }}</td><td data-label="Download /s" class="number eh-mono">{{ bytes(peer.download_speed) }}</td><td data-label="Tracked upload / download" class="number eh-mono">{{ bytes(peer.total_upload) }}<span class="eh-device-sub eh-mono">{{ bytes(peer.total_download) }}</span></td></tr></tbody></table><p v-if="!devices.length" class="eh-empty">{{ search||activity!=='all'?'No devices match your filter.':'No device data available from this server.' }}</p><div class="eh-section-heading" style="margin:16px 0 0"><p class="eh-footnote" style="margin:0">Recent activity: handshake within 3 minutes. Tracked totals begin at installation.</p><RouterLink to="/configurations" class="eh-text-button">Devices &amp; QR codes →</RouterLink></div></section>
+</section>
 </template>
-<style scoped>
-.eh-overview{max-width:1400px}.node-card{background:rgba(25,38,45,.75)}.traffic-chart{width:100%;height:180px}.table{--bs-table-bg:transparent}th{font-size:.8rem;color:#9ca3af}td{font-size:.9rem}
-</style>
