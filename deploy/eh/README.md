@@ -7,6 +7,14 @@ bar to manage that server. Node tokens stay on the servers.
 
 Each host also runs a private WGDashboard backend attached to its existing
 `amnezia-wireguard` network namespace and a loopback-only bridge at port 8791.
+The backend listens only on Amnezia's Docker bridge IPv4 address at port 10086.
+A dedicated `EHWGD_BACKEND` input chain accepts that port only from the host's
+Docker bridge gateway and drops it from VPN devices and other containers. Every
+backend request also requires its node token. No backend port is published.
+The node needs neither host PID access nor SYS_ADMIN/SYS_PTRACE privileges;
+it connects over this filtered private network and retains NET_ADMIN for its
+dedicated forwarding rules. The Docker socket is still a trusted administration
+interface and must remain private.
 VPN2 reaches VPN1's bridge through SSH at localhost:18791. Both configurations
 use standard WireGuard, `wg0`, and `/opt/amnezia/wireguard/wg0.conf`, as observed
 on VPN2; verify the same path on VPN1 before preparing it.
@@ -120,7 +128,7 @@ inspect any existing build job before starting another deployment.
   Source NAT means the service sees the VPN server as the connection source.
 - Test TCP and UDP externally, including close, expiry, renewal and container
   restarts, before relying on this. The node agent has host administration
-  privileges for namespace access and forwarding; it binds only to loopback
+  privileges for Docker administration and forwarding; it binds only to loopback
   and authenticates every request.
 
 ## Data, QR codes and upkeep

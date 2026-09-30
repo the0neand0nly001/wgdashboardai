@@ -1,4 +1,5 @@
-bind = '127.0.0.1:10086'
+import os
+bind = os.environ.get('EH_BACKEND_BIND', '127.0.0.1') + ':10086'
 workers = 1
 threads = 4
 worker_class = 'gthread'

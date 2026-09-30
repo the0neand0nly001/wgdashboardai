@@ -1,5 +1,4 @@
 """Private host bridge: existing Amnezia namespace, stats and forwarding leases."""
-import ctypes
 import datetime as dt
 import hmac
 import http.client
@@ -33,24 +32,14 @@ def inspect():
     return value
 
 def connect_backend():
-    pid = inspect()['State']['Pid']
-    original = os.open('/proc/self/ns/net', os.O_RDONLY)
-    target = os.open(f'/proc/{pid}/ns/net', os.O_RDONLY)
-    libc = ctypes.CDLL(None, use_errno=True)
-    sock = None
-    try:
-        if libc.setns(target, 0x40000000):
-            raise OSError(ctypes.get_errno(), 'Cannot enter VPN namespace')
-        sock = socket.create_connection(('127.0.0.1', 10086), timeout=15)
-    finally:
-        error = libc.setns(original, 0x40000000)
-        os.close(target)
-        os.close(original)
-        if error:
-            if sock:
-                sock.close()
-            raise OSError(ctypes.get_errno(), 'Cannot restore host namespace')
-    return sock
+    # The backend accepts only traffic from this host's Docker bridge gateway,
+    # plus the per-node token. No /proc access or namespace switching is needed.
+    addresses = [network['IPAddress'] for network in inspect()['NetworkSettings']['Networks'].values()
+                 if network.get('IPAddress')]
+    if len(addresses) != 1:
+        raise RuntimeError('Expected one private Amnezia bridge address')
+    address = str(ipaddress.IPv4Address(addresses[0]))
+    return socket.create_connection((address, 10086), timeout=15)
 
 def db():
     STATE.mkdir(parents=True, exist_ok=True)
