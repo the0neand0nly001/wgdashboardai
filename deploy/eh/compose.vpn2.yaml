@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
     network_mode: host
     pid: host
-    cap_add: [SYS_ADMIN, NET_ADMIN]
+    cap_add: [SYS_ADMIN, SYS_PTRACE, NET_ADMIN]
     environment:
       EH_NODE_TOKEN: ${EH_VPN2_TOKEN:?Set EH_VPN2_TOKEN}
       EH_PUBLIC_IP: 145.241.227.248
